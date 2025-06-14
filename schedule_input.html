@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Buddy - Add Schedule</title>
+</head>
+<body>
+    <h1>Add Class to Schedule</h1>
+    <form id="add-class-form">
+        <div>
+            <label for="subject">Subject:</label>
+            <input type="text" id="subject" name="subject" required>
+        </div>
+        <div>
+            <label for="day">Day of the Week:</label>
+            <select id="day" name="day" required>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+        </div>
+        <div>
+            <label for="start-time">Start Time:</label>
+            <input type="time" id="start-time" name="start-time" required>
+        </div>
+        <div>
+            <label for="end-time">End Time:</label>
+            <input type="time" id="end-time" name="end-time" required>
+        </div>
+        <button type="button" onclick="addClass()">Add Class</button>
+    </form>
+
+    <div id="next-class-info">
+        <h2>Next Class:</h2>
+        <p id="next-class">No upcoming classes today.</p>
+    </div>
+    <h2>Your Schedule</h2>
+    <table id="schedule-table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Day</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <h2>Add Homework Assignment</h2>
+    <form id="add-homework-form">
+        <div>
+            <label for="homework-subject">Subject:</label>
+            <input type="text" id="homework-subject" name="homework-subject" required>
+        </div>
+        <div>
+            <label for="homework-description">Assignment:</label>
+            <textarea id="homework-description" name="homework-description" rows="3" required></textarea>
+        </div>
+        <div>
+            <label for="homework-due-date">Due Date:</label>
+            <input type="date" id="homework-due-date" name="homework-due-date" required>
+        </div>
+        <button type="button" onclick="addHomework()">Add Homework</button>
+    </form>
+
+    <h2>Upcoming Homework</h2>
+    <ul id="homework-list">
+    </ul>
+
+    <h2>Track Your Grades</h2>
+    <form id="add-grade-form">
+        <div>
+            <label for="grade-subject">Subject/Assignment:</label>
+            <input type="text" id="grade-subject" name="grade-subject" required>
+        </div>
+        <div>
+            <label for="grade-value">Grade (%):</label>
+            <input type="number" id="grade-value" name="grade-value" min="0" max="100" required>
+        </div>
+        <button type="button" onclick="addGrade()">Add Grade</button>
+    </form>
+
+    <h2>Your Grades</h2>
+    <div id="grades-display-area">
+        <ul id="grades-list">
+        </ul>
+        <p>Average Grade: <span id="average-grade">N/A</span></p>
+    </div>
+
+    <h2>Simple Notes</h2>
+    <div id="notes-input-area">
+        <label for="note-subject">Subject (Optional):</label>
+        <input type="text" id="note-subject" name="note-subject">
+        <br><br>
+        <label for="note-text">Note:</label><br>
+        <textarea id="note-text" name="note-text" rows="5" cols="50"></textarea>
+        <br>
+        <button type="button" onclick="addNote()">Add Note</button>
+    </div>
+
+    <h2>Your Notes</h2>
+    <div id="notes-display-area">
+        <ul id="notes-list">
+        </ul>
+    </div>
+    <script>
+        // Initialize arrays from local storage or as empty arrays if no data exists
+        let schedule = JSON.parse(localStorage.getItem('schedule')) || [];
+        let homeworkAssignments = JSON.parse(localStorage.getItem('homeworkAssignments')) || [];
+        let grades = JSON.parse(localStorage.getItem('grades')) || [];
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+        // Function to save data to local storage
+        function saveToLocalStorage(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        function addClass() {
+            const subject = document.getElementById('subject').value;
+            const day = document.getElementById('day').value;
+            const startTime = document.getElementById('start-time').value;
+            const endTime = document.getElementById('end-time').value;
+
+            const newClass = {
+                subject: subject,
+                day: day,
+                startTime: startTime,
+                endTime: endTime
+            };
+
+            schedule.push(newClass);
+            saveToLocalStorage('schedule', schedule); // Save updated schedule
+
+            displaySchedule();
+            findNextClass();
+            document.getElementById('add-class-form').reset();
+        }
+
+        function displaySchedule() {
+            const tableBody = document.querySelector('#schedule-table tbody');
+            tableBody.innerHTML = '';
+
+            schedule.forEach(item => {
+                const row = tableBody.insertRow();
+                const subjectCell = row.insertCell();
+                const dayCell = row.insertCell();
+                const startTimeCell = row.insertCell();
+                const endTimeCell = row.insertCell();
+
+                subjectCell.textContent = item.subject;
+                dayCell.textContent = item.day;
+                startTimeCell.textContent = item.startTime;
+                endTimeCell.textContent = item.endTime;
+            });
+        }
+
+        function findNextClass() {
+            const now = new Date();
+            const currentDayIndex = now.getDay();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const currentDayName = daysOfWeek[currentDayIndex];
+
+            let nextClass = null;
+            let earliestTime = null;
+
+            schedule.forEach(scheduledClass => {
+                const scheduledDayIndex = daysOfWeek.indexOf(scheduledClass.day);
+
+                if (scheduledDayIndex > currentDayIndex ||
+                    (scheduledDayIndex === currentDayIndex &&
+                     timeToMinutes(scheduledClass.startTime) > timeToMinutes(`${currentHour}:${currentMinute}`))) {
+
+                    const classTimeInMinutes = timeToMinutes(scheduledClass.startTime);
+
+                    if (!nextClass || scheduledDayIndex < daysOfWeek.indexOf(nextClass.day) ||
+                        (scheduledDayIndex === daysOfWeek.indexOf(nextClass.day) && classTimeInMinutes < earliestTime)) {
+                        nextClass = scheduledClass;
+                        earliestTime = classTimeInMinutes;
+                    }
+                } else if (scheduledDayIndex === currentDayIndex && timeToMinutes(scheduledClass.endTime) <= timeToMinutes(`${currentHour}:${currentMinute}`)) {
+                    // If the class on the current day has already ended, we don't consider it
+                }
+            });
+
+            const nextClassDisplay = document.getElementById('next-class');
+            if (nextClass) {
+                nextClassDisplay.textContent = `${nextClass.subject} at ${nextClass.startTime}`;
+            } else {
+                nextClassDisplay.textContent = "No upcoming classes for the rest of the week.";
+            }
+        }
+
+        function timeToMinutes(timeString) {
+            const [hours, minutes] = timeString.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function addHomework() {
+            const subject = document.getElementById('homework-subject').value;
+            const description = document.getElementById('homework-description').value;
+            const dueDate = document.getElementById('homework-due-date').value;
+
+            const newAssignment = {
+                subject: subject,
+                description: description,
+                dueDate: dueDate
+            };
+
+            homeworkAssignments.push(newAssignment);
+            saveToLocalStorage('homeworkAssignments', homeworkAssignments); // Save updated homework
+
+            displayHomework();
+            document.getElementById('add-homework-form').reset();
+        }
+
+        function displayHomework() {
+            const homeworkList = document.getElementById('homework-list');
+            homeworkList.innerHTML = '';
+
+            homeworkAssignments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            homeworkAssignments.forEach(assignment => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${assignment.subject}: ${assignment.description} (Due: ${assignment.dueDate})`;
+                homeworkList.appendChild(listItem);
+            });
+        }
+
+        function addNote() {
+            const subject = document.getElementById('note-subject').value.trim();
+            const text = document.getElementById('note-text').value;
+
+            const newNote = {
+                subject: subject,
+                text: text
+            };
+
+            notes.push(newNote);
+            saveToLocalStorage('notes', notes); // Save updated notes
+
+            displayNotes();
+            document.getElementById('note-subject').value = '';
+            document.getElementById('note-text').value = '';
+        }
+
+        function displayNotes() {
+            const notesList = document.getElementById('notes-list');
+            notesList.innerHTML = '';
+
+            notes.forEach(note => {
+                const listItem = document.createElement('li');
+                let noteContent = note.text;
+                if (note.subject) {
+                    noteContent = `<strong>${note.subject}:</strong> ${note.text}`;
+                }
+                listItem.innerHTML = noteContent;
+
+                notesList.appendChild(listItem);
+            });
+        }
+
+        function addGrade() {
+            const subject = document.getElementById('grade-subject').value;
+            const gradeValue = parseFloat(document.getElementById('grade-value').value);
+
+            if (!isNaN(gradeValue) && gradeValue >= 0 && gradeValue <= 100) {
+                const newGrade = {
+                    subject: subject,
+                    grade: gradeValue
+                };
+
+                grades.push(newGrade);
+                saveToLocalStorage('grades', grades); // Save updated grades
+
+                displayGrades();
+                calculateAverageGrade();
+                document.getElementById('add-grade-form').reset();
+            } else {
+                alert("Please enter a valid grade between 0 and 100.");
+            }
+        }
+
+        function displayGrades() {
+            const gradesList = document.getElementById('grades-list');
+            gradesList.innerHTML = '';
+
+            grades.forEach(grade => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${grade.subject}: ${grade.grade}%`;
+                gradesList.appendChild(listItem);
+            });
+        }
+
+        function calculateAverageGrade() {
+            const averageGradeDisplay = document.getElementById('average-grade');
+            if (grades.length === 0) {
+                averageGradeDisplay.textContent = 'N/A';
+                return;
+            }
+
+            let sum = 0;
+            grades.forEach(gradeObj => {
+                sum += gradeObj.grade;
+            });
+
+            const average = sum / grades.length;
+            averageGradeDisplay.textContent = average.toFixed(2);
+        }
+
+        // --- Initial Load and Display ---
+        // Call display functions initially to load any saved data from local storage
+        document.addEventListener('DOMContentLoaded', () => {
+            displaySchedule();
+            findNextClass(); // Needs to be called after schedule is displayed
+            displayHomework();
+            displayNotes();
+            displayGrades();
+            calculateAverageGrade(); // Needs to be called after grades are displayed
+        });
+
+    </script>
+</body>
+</html>
